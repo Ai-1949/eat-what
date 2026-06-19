@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f0c29">
+  <title>吃什么 · 转盘</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg1: #0f0c29;
+      --bg2: #302b63;
+      --bg3: #24243e;
+      --accent: #ff6b6b;
+      --accent2: #feca57;
+      --accent3: #48dbfb;
+      --text: #fff;
+      --text-muted: rgba(255,255,255,0.6);
+      --glass: rgba(255,255,255,0.08);
+      --glass-border: rgba(255,255,255,0.15);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: calc(16px + var(--safe-top)) 20px calc(20px + var(--safe-bottom));
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(30px);
+      transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                  transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                  visibility 0.45s;
+    }
+
+    .page.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+
+    .page.leaving {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+
+    /* Header */
+    .header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 14px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--text);
+      font-size: 1.25rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, background 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .icon-btn:active {
+      transform: scale(0.88);
+      background: rgba(255,255,255,0.18);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subtitle {
+      width: 100%;
+      text-align: center;
+      line-height: 1.55;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+      padding: 0 4px;
+    }
+
+    .subtitle-main {
+      font-size: 0.88rem;
+      color: rgba(255, 255, 255, 0.88);
+      margin-bottom: 5px;
+    }
+
+    .subtitle-sub {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .icon-btn svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      display: block;
+    }
+
+    .icon-btn .sound-off {
+      display: none;
+    }
+
+    .icon-btn.muted .sound-on {
+      display: none;
+    }
+
+    .icon-btn.muted .sound-off {
+      display: block;
+    }
+
+    .icon-btn.muted {
+      opacity: 0.65;
+    }
+
+    /* Wheel area */
+    .wheel-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .wheel-container {
+      position: relative;
+      width: min(92vw, 380px);
+      aspect-ratio: 1;
+    }
+
+    .wheel-glow {
+      position: absolute;
+      inset: -8%;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent3), var(--accent));
+      opacity: 0.35;
+      filter: blur(24px);
+      animation: glowPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.25; transform: scale(0.98); }
+      50% { opacity: 0.45; transform: scale(1.02); }
+    }
+
+    .wheel-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      padding: 5px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.05));
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .wheel-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #wheelCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .wheel-pointer {
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    }
+
+    .wheel-pointer svg {
+      width: 32px;
+      height: 40px;
+    }
+
+    .wheel-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #fff, #ddd);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.8);
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    /* Buttons */
+    .actions {
+      width: 100%;
+      flex-shrink: 0;
+      padding-top: 20px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      height: 56px;
+      border: none;
+      border-radius: 28px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent) 0%, #ee5a24 50%, var(--accent2) 100%);
+      background-size: 200% 200%;
+      box-shadow: 0 6px 24px rgba(255, 107, 107, 0.45);
+      transition: transform 0.15s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 2px;
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s;
+    }
+
+    .btn-primary:not(:disabled):active {
+      transform: scale(0.96);
+      box-shadow: 0 3px 12px rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-primary:not(:disabled):active::after {
+      transform: translateX(100%);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      filter: grayscale(0.3);
+    }
+
+    .btn-primary.spinning {
+      animation: btnShimmer 1.5s ease infinite;
+    }
+
+    @keyframes btnShimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Settings page */
+    .settings-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+
+    .settings-header h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .food-list {
+      flex: 1;
+      width: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+    }
+
+    .food-list::-webkit-scrollbar { width: 4px; }
+    .food-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+    .food-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: slideIn 0.3s ease backwards;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .food-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .food-name {
+      flex: 1;
+      font-size: 1rem;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .food-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .food-actions button {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    .food-actions button:active {
+      transform: scale(0.85);
+    }
+
+    .food-actions .btn-delete {
+      color: var(--accent);
+    }
+
+    .add-bar {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+      padding-top: 12px;
+    }
+
+    .add-bar input {
+      flex: 1;
+      height: 48px;
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      background: var(--glass);
+      color: var(--text);
+      font-size: 1rem;
+      padding: 0 16px;
+      outline: none;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .add-bar input::placeholder { color: var(--text-muted); }
+    .add-bar input:focus { border-color: var(--accent3); }
+
+    .btn-add {
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent3), #0abde3);
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+      box-shadow: 0 4px 16px rgba(72, 219, 251, 0.35);
+    }
+
+    .btn-add:active { transform: scale(0.88); }
+
+    .empty-tip {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 20px;
+      font-size: 0.95rem;
+    }
+
+    .count-badge {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.35s, visibility 0.35s;
+      padding: 24px;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      width: min(340px, 90vw);
+      background: linear-gradient(160deg, rgba(48,43,99,0.95), rgba(15,12,41,0.98));
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      padding: 36px 28px 28px;
+      text-align: center;
+      transform: scale(0.8) translateY(20px);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+
+    .modal-overlay.show .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-emoji {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+      animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0); }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    .modal-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .modal-result {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent2), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 28px;
+      line-height: 1.4;
+    }
+
+    .btn-modal {
+      width: 100%;
+      height: 50px;
+      border: none;
+      border-radius: 25px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent3), #0abde3);
+      transition: transform 0.15s;
+      box-shadow: 0 4px 20px rgba(72, 219, 251, 0.35);
+    }
+
+    .btn-modal:active { transform: scale(0.95); }
+
+    /* Edit inline */
+    .edit-input {
+      flex: 1;
+      height: 36px;
+      border: 1px solid var(--accent3);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      font-size: 1rem;
+      padding: 0 12px;
+      outline: none;
+    }
+
+    /* Confetti particles */
+    .confetti {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 200;
+      animation: confettiFall 1.2s ease forwards;
+    }
+
+    @keyframes confettiFall {
+      0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+      100% { opacity: 0; transform: translateY(120px) rotate(720deg); }
+    }
+
+    @media (min-width: 480px) {
+      .logo { font-size: 1.75rem; }
+      .wheel-container { width: min(80vw, 400px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 主页 -->
+    <div class="page active" id="pageHome">
+      <div class="header">
+        <div class="logo">🍜 吃什么</div>
+        <div class="header-actions">
+          <button class="icon-btn" id="btnSound" aria-label="关闭音效">
+            <svg class="sound-icon sound-on" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="soundOnGrad" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#48dbfb"/>
+                  <stop offset="100%" stop-color="#feca57"/>
+                </linearGradient>
+              </defs>
+              <path d="M4 9.5v5h3.8L13 18.5V5.5L7.8 9.5H4z" fill="url(#soundOnGrad)"/>
+              <path d="M15.5 8.5a5.5 5.5 0 010 7" stroke="url(#soundOnGrad)" stroke-width="1.75" stroke-linecap="round"/>
+              <path d="M18 6a9 9 0 010 12" stroke="url(#soundOnGrad)" stroke-width="1.75" stroke-linecap="round" opacity="0.65"/>
+            </svg>
+            <svg class="sound-icon sound-off" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="soundOffGrad" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="rgba(255,255,255,0.45)"/>
+                  <stop offset="100%" stop-color="rgba(255,255,255,0.25)"/>
+                </linearGradient>
+              </defs>
+              <path d="M4 9.5v5h3.8L13 18.5V5.5L7.8 9.5H4z" fill="url(#soundOffGrad)"/>
+              <path d="M16 9l5 6M21 9l-5 6" stroke="rgba(255,255,255,0.5)" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="btnSettings" aria-label="设置">⚙️</button>
+        </div>
+      </div>
+      <div class="subtitle">
+        <p class="subtitle-main">选择困难症救星！转动转盘随机决定吃什么</p>
+        <p class="subtitle-sub">点击右上角设置，随心编辑你的美食列表，数据本地永久保存</p>
+      </div>
+
+      <div class="wheel-wrap">
+        <div class="wheel-container">
+          <div class="wheel-glow"></div>
+          <div class="wheel-ring">
+            <div class="wheel-inner">
+              <canvas id="wheelCanvas"></canvas>
+            </div>
+          </div>
+          <div class="wheel-pointer">
+            <svg viewBox="0 0 32 40" fill="none">
+              <path d="M16 40 L4 12 Q16 4 28 12 Z" fill="url(#ptrGrad)" stroke="#fff" stroke-width="1.5"/>
+              <defs>
+                <linearGradient id="ptrGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#ff6b6b"/>
+                  <stop offset="100%" stop-color="#ee5a24"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="wheel-center">🎯</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" id="btnSpin">开始转盘</button>
+      </div>
+    </div>
+
+    <!-- 设置页 -->
+    <div class="page" id="pageSettings">
+      <div class="settings-header">
+        <button class="icon-btn" id="btnBack" aria-label="返回">←</button>
+        <h2>食物选项</h2>
+        <span class="count-badge" id="foodCount"></span>
+      </div>
+
+      <div class="food-list" id="foodList"></div>
+
+      <div class="add-bar">
+        <input type="text" id="inputFood" placeholder="添加新食物..." maxlength="20">
+        <button class="btn-add" id="btnAdd">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结果弹窗 -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <div class="modal-label">今天就吃</div>
+      <div class="modal-result" id="modalResult"></div>
+      <button class="btn-modal" id="btnCloseModal">好的，开吃！</button>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_FOODS = [
+      '麻辣烫', '螺蛳粉', '黄焖鸡米饭', '兰州拉面',
+      '汉堡炸鸡', '沙县小吃', '烤肉拌饭', '重庆小面',
+      '手工水饺', '番茄盖饭', '轻食沙拉', '牛肉火锅'
+    ];
+
+    const GRADIENTS = [
+      ['#ff6b6b', '#ee5a24'],
+      ['#feca57', '#ff9f43'],
+      ['#48dbfb', '#0abde3'],
+      ['#ff9ff3', '#f368e0'],
+      ['#1dd1a1', '#10ac84'],
+      ['#5f27cd', '#341f97'],
+      ['#ff6348', '#c0392b'],
+      ['#00d2d3', '#01a3a4'],
+      ['#fd79a8', '#e84393'],
+      ['#a29bfe', '#6c5ce7'],
+      ['#ffeaa7', '#fdcb6e'],
+      ['#74b9ff', '#0984e3']
+    ];
+
+    const EMOJIS = ['🍜','🍲','🍛','🍝','🍔','🥟','🥗','🍖','🍕','🌮','🥘','🍱'];
+
+    const STORAGE_KEY = 'chiShenMe_foods';
+    const SOUND_KEY = 'chiShenMe_sound';
+
+    let foods = [];
+    let currentRotation = 0;
+    let isSpinning = false;
+    let animFrame = null;
+    let lastTickSlice = -1;
+
+    // --- Web Audio 音效引擎（纯 JS 合成，无外部文件）---
+    const Sound = {
+      ctx: null,
+      bgGain: null,
+      sfxGain: null,
+      bgStarted: false,
+      bgTimer: null,
+      BG_VOLUME: 0.045,
+      SFX_VOLUME: 0.158,
+      TICK_VOLUME: 0.7,
+      enabled: localStorage.getItem(SOUND_KEY) !== 'off',
+
+      init() {
+        if (this.ctx) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        this.ctx = new AC();
+        this.bgGain = this.ctx.createGain();
+        this.sfxGain = this.ctx.createGain();
+        this.bgGain.connect(this.ctx.destination);
+        this.sfxGain.connect(this.ctx.destination);
+        this.bgGain.gain.value = this.enabled ? this.BG_VOLUME : 0;
+        this.sfxGain.gain.value = this.enabled ? this.SFX_VOLUME : 0;
+      },
+
+      async resume() {
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') await this.ctx.resume();
+      },
+
+      setEnabled(on) {
+        this.enabled = on;
+        localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+        const btn = document.getElementById('btnSound');
+        if (btn) {
+          btn.classList.toggle('muted', !on);
+          btn.setAttribute('aria-label', on ? '关闭音效' : '开启音效');
+        }
+        if (this.bgGain) this.bgGain.gain.value = on ? this.BG_VOLUME : 0;
+        if (this.sfxGain) this.sfxGain.gain.value = on ? this.SFX_VOLUME : 0;
+        if (on) this.startBackground();
+        else this.stopBackground();
+      },
+
+      toggle() {
+        this.setEnabled(!this.enabled);
+      },
+
+      startBackground() {
+        if (!this.ctx || !this.enabled || this.bgStarted) return;
+        this.bgStarted = true;
+
+        // 八音盒风格：轻拨单音 + 极低音量低音点缀
+        const melody = [
+          { f: 523.25, d: 0.42 }, { f: 659.25, d: 0.42 }, { f: 783.99, d: 0.55 },
+          { f: 659.25, d: 0.38 }, { f: 587.33, d: 0.42 }, { f: 659.25, d: 0.42 },
+          { f: 523.25, d: 0.55 }, { f: 440.00, d: 0.38 }, { f: 493.88, d: 0.42 },
+          { f: 587.33, d: 0.42 }, { f: 659.25, d: 0.55 }, { f: 783.99, d: 0.65 },
+          { f: 698.46, d: 0.42 }, { f: 659.25, d: 0.42 }, { f: 587.33, d: 0.55 },
+          { f: 523.25, d: 0.75 }
+        ];
+        let step = 0;
+
+        const playPluck = (freq, dur) => {
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const harm = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const g = this.ctx.createGain();
+          osc.type = 'triangle';
+          harm.type = 'sine';
+          osc.frequency.value = freq;
+          harm.frequency.value = freq * 2.01;
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(2800, t);
+          filter.frequency.exponentialRampToValueAtTime(600, t + dur);
+          filter.Q.value = 0.8;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.28, t + 0.006);
+          g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          osc.connect(filter);
+          harm.connect(filter);
+          filter.connect(g);
+          g.connect(this.bgGain);
+          osc.start(t);
+          harm.start(t);
+          osc.stop(t + dur + 0.08);
+          harm.stop(t + dur + 0.08);
+        };
+
+        const playSoftBass = (freq, dur) => {
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq / 2;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.08, t + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          osc.connect(g);
+          g.connect(this.bgGain);
+          osc.start(t);
+          osc.stop(t + dur + 0.05);
+        };
+
+        const loop = () => {
+          if (!this.enabled || !this.bgStarted) return;
+          const note = melody[step % melody.length];
+          playPluck(note.f, note.d);
+          if (step % 4 === 0) playSoftBass(note.f, note.d + 0.3);
+          step++;
+          this.bgTimer = setTimeout(loop, note.d * 1000 + 80);
+        };
+        loop();
+      },
+
+      stopBackground() {
+        this.bgStarted = false;
+        if (this.bgTimer) {
+          clearTimeout(this.bgTimer);
+          this.bgTimer = null;
+        }
+      },
+
+      playTick(strength, sliceIndex) {
+        if (!this.ctx || !this.enabled) return;
+        const t = this.ctx.currentTime;
+        const s = Math.min(1, Math.max(0, strength));
+        const vol = (0.08 + s * 0.17) * this.TICK_VOLUME;
+        const dur = 0.055 + s * 0.09;
+
+        // 五声音阶拨弦，各分区音高不同，转出轻快节奏感
+        const scale = [659.25, 739.99, 830.61, 987.77, 1108.73];
+        const freq = scale[(sliceIndex ?? 0) % scale.length];
+
+        const osc = this.ctx.createOscillator();
+        const harm = this.ctx.createOscillator();
+        const shimmer = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        harm.type = 'sine';
+        shimmer.type = 'triangle';
+        osc.frequency.value = freq;
+        harm.frequency.value = freq * 2.76;
+        shimmer.frequency.value = freq * 5.5;
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(4200 + s * 800, t);
+        filter.frequency.exponentialRampToValueAtTime(700, t + dur);
+        filter.Q.value = 1.2;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol * 0.75, t + 0.0015);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        osc.connect(filter);
+        harm.connect(filter);
+        shimmer.connect(filter);
+        filter.connect(g);
+        g.connect(this.sfxGain);
+        osc.start(t);
+        harm.start(t);
+        shimmer.start(t);
+        osc.stop(t + dur + 0.03);
+        harm.stop(t + dur + 0.03);
+        shimmer.stop(t + dur + 0.03);
+
+        // 极轻触板，增加拨弦质感但不刺耳
+        const tapLen = Math.floor(this.ctx.sampleRate * 0.006);
+        const tapBuf = this.ctx.createBuffer(1, tapLen, this.ctx.sampleRate);
+        const tapData = tapBuf.getChannelData(0);
+        for (let i = 0; i < tapLen; i++) {
+          tapData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / tapLen, 3);
+        }
+        const tap = this.ctx.createBufferSource();
+        const tapFilter = this.ctx.createBiquadFilter();
+        const tapGain = this.ctx.createGain();
+        tap.buffer = tapBuf;
+        tapFilter.type = 'highpass';
+        tapFilter.frequency.value = 1800;
+        tapFilter.Q.value = 0.7;
+        tapGain.gain.setValueAtTime(vol * 0.18, t);
+        tapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.012);
+        tap.connect(tapFilter);
+        tapFilter.connect(tapGain);
+        tapGain.connect(this.sfxGain);
+        tap.start(t);
+      },
+
+      playWin() {
+        if (!this.ctx || !this.enabled) return;
+        const t = this.ctx.currentTime;
+        const notes = [
+          { f: 523.25, at: 0, d: 0.35 },
+          { f: 659.25, at: 0.09, d: 0.35 },
+          { f: 783.99, at: 0.18, d: 0.4 },
+          { f: 1046.5, at: 0.28, d: 0.55 }
+        ];
+        notes.forEach(({ f, at, d }) => {
+          const start = t + at;
+          const osc = this.ctx.createOscillator();
+          const harm = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const g = this.ctx.createGain();
+          osc.type = 'triangle';
+          harm.type = 'sine';
+          osc.frequency.value = f;
+          harm.frequency.value = f * 2;
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(3200, start);
+          filter.frequency.exponentialRampToValueAtTime(900, start + d);
+          g.gain.setValueAtTime(0, start);
+          g.gain.linearRampToValueAtTime(0.22, start + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.001, start + d);
+          osc.connect(filter);
+          harm.connect(filter);
+          filter.connect(g);
+          g.connect(this.sfxGain);
+          osc.start(start);
+          harm.start(start);
+          osc.stop(start + d + 0.05);
+          harm.stop(start + d + 0.05);
+        });
+      },
+
+      getSliceUnderPointer(rotation) {
+        const count = foods.length;
+        if (count === 0) return -1;
+        const sliceAngle = (Math.PI * 2) / count;
+        let angle = (-rotation) % (Math.PI * 2);
+        if (angle < 0) angle += Math.PI * 2;
+        return Math.floor(angle / sliceAngle) % count;
+      },
+
+      checkWheelTick(rotation, velocity) {
+        const slice = this.getSliceUnderPointer(rotation);
+        if (slice !== lastTickSlice && lastTickSlice !== -1) {
+          const strength = Math.min(1, Math.abs(velocity) / 0.08);
+          this.playTick(strength, slice);
+        }
+        lastTickSlice = slice;
+      }
+    };
+
+    async function ensureAudio() {
+      await Sound.resume();
+      Sound.startBackground();
+    }
+
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    // --- Storage ---
+    function loadFoods() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length >= 2) {
+            foods = parsed;
+            return;
+          }
+        }
+      } catch (_) {}
+      foods = DEFAULT_FOODS.map((name, i) => ({
+        id: Date.now() + i,
+        name,
+        color: GRADIENTS[i % GRADIENTS.length]
+      }));
+      saveFoods();
+    }
+
+    function saveFoods() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(foods));
+    }
+
+    // --- Canvas Wheel ---
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const size = rect.width;
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawWheel();
+    }
+
+    function drawWheel() {
+      const size = canvas.width / dpr;
+      const cx = size / 2;
+      const cy = size / 2;
+      const radius = size / 2 - 2;
+      const count = foods.length;
+
+      if (count === 0) {
+        ctx.clearRect(0, 0, size, size);
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = `${size * 0.05}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('请添加食物', cx, cy);
+        return;
+      }
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(currentRotation);
+
+      const sliceAngle = (Math.PI * 2) / count;
+
+      for (let i = 0; i < count; i++) {
+        const start = i * sliceAngle - Math.PI / 2;
+        const end = start + sliceAngle;
+        const [c1, c2] = foods[i].color || GRADIENTS[i % GRADIENTS.length];
+
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        grad.addColorStop(0, c1);
+        grad.addColorStop(1, c2);
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.save();
+        const midAngle = start + sliceAngle / 2;
+        ctx.rotate(midAngle);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(11, size * 0.042)}px -apple-system, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 4;
+
+        const label = foods[i].name;
+        const maxLen = count > 8 ? 4 : 6;
+        const display = label.length > maxLen ? label.slice(0, maxLen) : label;
+        ctx.fillText(display, radius * 0.62, 4);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // --- Spin Physics ---
+    async function spin() {
+      if (isSpinning || foods.length < 2) return;
+      await ensureAudio();
+      isSpinning = true;
+      lastTickSlice = Sound.getSliceUnderPointer(currentRotation);
+
+      const btn = document.getElementById('btnSpin');
+      btn.disabled = true;
+      btn.textContent = '转盘中...';
+      btn.classList.add('spinning');
+
+      const count = foods.length;
+      const sliceAngle = (Math.PI * 2) / count;
+
+      const winIndex = Math.floor(Math.random() * count);
+
+      const pointerAngle = -Math.PI / 2;
+      const targetSliceCenter = winIndex * sliceAngle + sliceAngle / 2 - Math.PI / 2;
+
+      let targetRotation = pointerAngle - targetSliceCenter;
+      while (targetRotation <= currentRotation) {
+        targetRotation += Math.PI * 2;
+      }
+      targetRotation += Math.PI * 2 * (5 + Math.floor(Math.random() * 3));
+
+      const startRotation = currentRotation;
+      const totalDelta = targetRotation - startRotation;
+      const duration = 5000 + Math.random() * 1500;
+      const startTime = performance.now();
+      let prevRotation = startRotation;
+
+      function spinEase(t) {
+        if (t <= 0.12) {
+          const p = t / 0.12;
+          return 0.04 * p * p;
+        }
+        const p = (t - 0.12) / 0.88;
+        return 0.04 + 0.96 * (1 - Math.pow(1 - p, 3.5));
+      }
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = spinEase(progress);
+
+        currentRotation = startRotation + totalDelta * eased;
+        const velocity = currentRotation - prevRotation;
+        prevRotation = currentRotation;
+        Sound.checkWheelTick(currentRotation, velocity);
+        drawWheel();
+
+        if (progress < 1) {
+          animFrame = requestAnimationFrame(animate);
+        } else {
+          currentRotation = targetRotation;
+          drawWheel();
+          isSpinning = false;
+          btn.disabled = false;
+          btn.textContent = '再来一次';
+          btn.classList.remove('spinning');
+
+          Sound.playWin();
+          setTimeout(() => showResult(foods[winIndex].name), 300);
+        }
+      }
+
+      animFrame = requestAnimationFrame(animate);
+    }
+
+    // --- Result Modal ---
+    function showResult(name) {
+      document.getElementById('modalResult').textContent = name;
+      document.getElementById('modalEmoji').textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+      document.getElementById('modalOverlay').classList.add('show');
+      spawnConfetti();
+    }
+
+    function hideResult() {
+      document.getElementById('modalOverlay').classList.remove('show');
+    }
+
+    function spawnConfetti() {
+      const colors = ['#ff6b6b','#feca57','#48dbfb','#ff9ff3','#1dd1a1','#a29bfe'];
+      for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.className = 'confetti';
+          el.style.left = (20 + Math.random() * 60) + 'vw';
+          el.style.top = (30 + Math.random() * 20) + 'vh';
+          el.style.background = colors[Math.floor(Math.random() * colors.length)];
+          el.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 1600);
+        }, i * 40);
+      }
+    }
+
+    // --- Page Navigation ---
+    function switchPage(from, to) {
+      from.classList.add('leaving');
+      from.classList.remove('active');
+      setTimeout(() => {
+        from.classList.remove('leaving');
+        to.classList.add('active');
+        if (to.id === 'pageHome') resizeCanvas();
+      }, 200);
+    }
+
+    // --- Settings CRUD ---
+    function renderFoodList() {
+      const list = document.getElementById('foodList');
+      document.getElementById('foodCount').textContent = foods.length + ' 项';
+
+      if (foods.length === 0) {
+        list.innerHTML = '<div class="empty-tip">还没有食物选项<br>在下方添加吧</div>';
+        return;
+      }
+
+      list.innerHTML = foods.map((food, idx) => `
+        <div class="food-item" style="animation-delay:${idx * 0.04}s" data-id="${food.id}">
+          <div class="food-color" style="background:linear-gradient(135deg,${food.color[0]},${food.color[1]})"></div>
+          <span class="food-name">${escapeHtml(food.name)}</span>
+          <div class="food-actions">
+            <button onclick="editFood(${food.id})" aria-label="编辑">✏️</button>
+            <button class="btn-delete" onclick="deleteFood(${food.id})" aria-label="删除">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function addFood() {
+      const input = document.getElementById('inputFood');
+      const name = input.value.trim();
+      if (!name) return;
+      if (foods.some(f => f.name === name)) {
+        input.value = '';
+        input.placeholder = '已存在，换一个吧';
+        setTimeout(() => { input.placeholder = '添加新食物...'; }, 1500);
+        return;
+      }
+      foods.push({
+        id: Date.now(),
+        name,
+        color: GRADIENTS[foods.length % GRADIENTS.length]
+      });
+      saveFoods();
+      input.value = '';
+      renderFoodList();
+      drawWheel();
+    }
+
+    function deleteFood(id) {
+      if (foods.length <= 2) {
+        alert('至少保留 2 个选项才能转盘哦');
+        return;
+      }
+      foods = foods.filter(f => f.id !== id);
+      saveFoods();
+      renderFoodList();
+      drawWheel();
+    }
+
+    function editFood(id) {
+      const food = foods.find(f => f.id === id);
+      if (!food) return;
+      const item = document.querySelector(`.food-item[data-id="${id}"]`);
+      item.innerHTML = `
+        <input class="edit-input" id="editInput" value="${escapeHtml(food.name)}" maxlength="20">
+        <div class="food-actions">
+          <button onclick="saveEdit(${id})" aria-label="保存">✓</button>
+          <button onclick="renderFoodList()" aria-label="取消">✕</button>
+        </div>
+      `;
+      const inp = document.getElementById('editInput');
+      inp.focus();
+      inp.select();
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') saveEdit(id);
+        if (e.key === 'Escape') renderFoodList();
+      });
+    }
+
+    function saveEdit(id) {
+      const inp = document.getElementById('editInput');
+      const name = inp.value.trim();
+      if (!name) return;
+      if (foods.some(f => f.name === name && f.id !== id)) {
+        alert('该名称已存在');
+        return;
+      }
+      const food = foods.find(f => f.id === id);
+      if (food) {
+        food.name = name;
+        saveFoods();
+        renderFoodList();
+        drawWheel();
+      }
+    }
+
+    // --- Events ---
+    document.getElementById('btnSpin').addEventListener('click', spin);
+    document.getElementById('btnSound').addEventListener('click', async () => {
+      await Sound.resume();
+      Sound.toggle();
+    });
+    document.getElementById('btnSettings').addEventListener('click', async () => {
+      await ensureAudio();
+      switchPage(document.getElementById('pageHome'), document.getElementById('pageSettings'));
+      renderFoodList();
+    });
+    document.getElementById('btnBack').addEventListener('click', () => {
+      switchPage(document.getElementById('pageSettings'), document.getElementById('pageHome'));
+    });
+    document.getElementById('btnAdd').addEventListener('click', addFood);
+    document.getElementById('inputFood').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addFood();
+    });
+    document.getElementById('btnCloseModal').addEventListener('click', hideResult);
+    document.getElementById('modalOverlay').addEventListener('click', e => {
+      if (e.target === e.currentTarget) hideResult();
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- Init ---
+    loadFoods();
+    resizeCanvas();
+    Sound.setEnabled(Sound.enabled);
+  </script>
+</body>
+</html>
